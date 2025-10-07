@@ -1,0 +1,9 @@
+/venv
+/.vscode
+/database.db 
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+alembic/ver

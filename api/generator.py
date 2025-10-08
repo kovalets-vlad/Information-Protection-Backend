@@ -50,14 +50,4 @@ def random_sequence(reg: RandomRequest, session: SessionDep):
     session.add(state)
     session.commit()
 
-    if reg.file:
-        buffer = StringIO()
-        buffer.write("\n".join(map(str, numbers)))
-        buffer.seek(0)
-        return StreamingResponse(
-            buffer,
-            media_type="text/plain",
-            headers={"Content-Disposition": "attachment; filename=random_numbers.txt"}
-        )
-    else:
-        return JSONResponse(content={"sequence": numbers})
+    return JSONResponse(content={"sequence": numbers})

@@ -1,5 +1,5 @@
 import math
-from ..core.core_varibles import COMPARISON_MODULE, INCREASE, MULTIPLIER
+from ..core.core_varibles import MULTIPLIER, INCREASE, COMPARISON_MODULE
 
 def lcg(seed: int, a=MULTIPLIER, c=INCREASE, m=COMPARISON_MODULE) -> int:
     return (a * seed + c) % m

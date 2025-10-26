@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .api import generator
+from .api import generator, hashfun
 from .db.init_db import create_db_and_tables
 from .utils.startingseed import starting_seed
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,3 +20,4 @@ def on_startup():
     starting_seed()
 
 app.include_router(generator.router, tags=["Random"])
+app.include_router(hashfun.router, tags=["HashFunction"])

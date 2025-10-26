@@ -23,7 +23,7 @@ def period(session: SessionDep):
     return i - seen[x]
 
 @router.post("/test_generator")
-def test_generator(session: SessionDep, n: int = 10000):
+def test_generator(session: SessionDep, n: int = 1000):
     state = session.get(RandomState, 1)
     seed = state.seed
 

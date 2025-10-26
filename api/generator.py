@@ -23,7 +23,7 @@ def period(session: SessionDep):
     return i - seen[x]
 
 @router.post("/test_generator")
-def test_generator(session: SessionDep, n: int = 10000):
+def test_generator(session: SessionDep, n: int = 1000):
     state = session.get(RandomState, 1)
     seed = state.seed
 
@@ -50,14 +50,4 @@ def random_sequence(reg: RandomRequest, session: SessionDep):
     session.add(state)
     session.commit()
 
-    if reg.file:
-        buffer = StringIO()
-        buffer.write("\n".join(map(str, numbers)))
-        buffer.seek(0)
-        return StreamingResponse(
-            buffer,
-            media_type="text/plain",
-            headers={"Content-Disposition": "attachment; filename=random_numbers.txt"}
-        )
-    else:
-        return JSONResponse(content={"sequence": numbers})
+    return JSONResponse(content={"sequence": numbers})

@@ -1,6 +1,11 @@
 from pydantic import BaseModel
-from typing import Optional
 
 class RandomRequest(BaseModel):
     count: int
-    file: Optional[bool] = False
+
+class MD5Request(BaseModel):
+    data: str 
+
+class MD5Response(BaseModel):
+    hex: str
+    length: int  

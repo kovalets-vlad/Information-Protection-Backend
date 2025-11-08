@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile
-from ..schemas.models import MD5Request, MD5Response
+from ..schemas.md5Models import MD5Request, MD5Response
 from ..utils.hashfun_utils import MD5
-import asyncio
 
 router = APIRouter()
 
@@ -16,12 +15,12 @@ def md5_from_string(req: MD5Request):
 
 @router.post("/md5/file", response_model=MD5Response)
 async def md5_from_file(file: UploadFile = File(...)):
-    CHUNK_SIZE = 1024*512
+    CHUNK_SIZE = 1024*1024
     md = MD5()
     total = 0
     try:
         while True:
-            chunk = await asyncio.to_thread(file.file.read, CHUNK_SIZE)
+            chunk = await file.read(CHUNK_SIZE)
             if not chunk:
                 break
             md.update(chunk)

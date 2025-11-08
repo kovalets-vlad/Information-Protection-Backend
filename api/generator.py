@@ -1,10 +1,9 @@
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse, JSONResponse
-from io import StringIO
+from fastapi.responses import JSONResponse
 import math, random
 from ..db.session import SessionDep
 from ..db.models import RandomState
-from ..schemas.models import RandomRequest
+from ..schemas.randomModels import RandomRequest
 from ..utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
 
 router = APIRouter()

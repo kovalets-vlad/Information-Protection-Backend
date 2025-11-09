@@ -1,14 +1,12 @@
-import os
 from fastapi import UploadFile
 from .hashfun_utils import MD5
 from .rc5_custom import RC5_custom as RC5
 from ..db.models import RandomState
 from ..utils.lcg_utils import lcg 
-from ..core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, KEY_SIZE
-    
-BLOCK_SIZE = 2 * ( RC5_WORD_SIZE/8 )    
+from ..core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, STREAM_CHUNK_SIZE
+
+BLOCK_SIZE = int(2 * ( RC5_WORD_SIZE/8 ))    
 IV_SIZE = BLOCK_SIZE 
-STREAM_CHUNK_SIZE = 64 * 1024 
 
 def pad(data: bytes, block_size: int) -> bytes:
     padding_len = block_size - (len(data) % block_size)
@@ -80,72 +78,76 @@ def decrypt_text(password: str, encrypted_data: bytes) -> str:
         print(f"Decryption error: {e}")
         raise ValueError("Неправильний пароль або пошкоджені дані")
 
+
 async def encrypt_file_stream(password: str, input_file: UploadFile, iv: bytes):
     key = get_key_from_password(password)
     cipher = RC5.new(key, RC5.MODE_CBC, IV=iv,
                      word_size=RC5_WORD_SIZE, rounds=RC5_ROUNDS)
-
     yield iv 
 
+    buffer = b""
     while True:
         chunk = await input_file.read(STREAM_CHUNK_SIZE)
         
         if not chunk:
-            padded_chunk = pad(b"", BLOCK_SIZE)
-            yield cipher.encrypt(padded_chunk)
+            padded_chunk = pad(buffer, BLOCK_SIZE)
+            yield cipher.encrypt(padded_chunk) 
             break
-        
-        if len(chunk) < STREAM_CHUNK_SIZE:
-            padded_chunk = pad(chunk, BLOCK_SIZE)
-            yield cipher.encrypt(padded_chunk)
-            break
-        else:
-            if len(chunk) % BLOCK_SIZE != 0:
-                raise Exception("Помилка потоку: чанк не кратний розміру блоку")
-            yield cipher.encrypt(chunk)
             
-    await input_file.close()
+        buffer += chunk
+        
+        cutoff = (len(buffer) // BLOCK_SIZE) * BLOCK_SIZE
+        if cutoff > 0:
+            to_encrypt = buffer[:cutoff]
+            buffer = buffer[cutoff:]
+
+            yield cipher.encrypt(to_encrypt) 
 
 
 async def decrypt_file_stream(password: str, input_file: UploadFile):
     try:
+        key = get_key_from_password(password)
+        
         iv = await input_file.read(IV_SIZE)
-
         if len(iv) < IV_SIZE:
             raise ValueError("Пошкоджений файл: заголовок занадто короткий.")
 
-        key = get_key_from_password(password)
         cipher = RC5.new(key, RC5.MODE_CBC, IV=iv,
                          word_size=RC5_WORD_SIZE, rounds=RC5_ROUNDS)
 
         last_decrypted_chunk = b""
-        
+        buffer = b""
+
         while True:
-            ciphertext_chunk = await input_file.read(STREAM_CHUNK_SIZE)
-            
+            ciphertext_chunk = await input_file.read(STREAM_CHUNK_SIZE) 
+
             if not ciphertext_chunk:
-                if not last_decrypted_chunk:
-                     raise ValueError("Пошкоджений файл: немає даних")
-                unpadded_data = unpad(last_decrypted_chunk, BLOCK_SIZE)
-                yield unpadded_data
-                break
-
-            decrypted_chunk = cipher.decrypt(ciphertext_chunk)
-
-            if len(ciphertext_chunk) < STREAM_CHUNK_SIZE:
+                if len(buffer) % BLOCK_SIZE != 0:
+                    raise ValueError("Пошкоджені дані: неповний останній блок.")
+                
+                decrypted_chunk = cipher.decrypt(buffer) 
                 if last_decrypted_chunk:
                     yield last_decrypted_chunk
                 
                 unpadded_data = unpad(decrypted_chunk, BLOCK_SIZE)
                 yield unpadded_data
                 break
-            else:
-                if last_decrypted_chunk:
-                    yield last_decrypted_chunk
-                last_decrypted_chunk = decrypted_chunk
+
+            buffer += ciphertext_chunk
+            
+            cutoff = (len(buffer) // BLOCK_SIZE) * BLOCK_SIZE
+            if cutoff == 0:
+                continue 
+                
+            to_decrypt = buffer[:cutoff]
+            buffer = buffer[cutoff:]
+
+            decrypted_chunk = cipher.decrypt(to_decrypt)
+            
+            if last_decrypted_chunk:
+                yield last_decrypted_chunk
+            last_decrypted_chunk = decrypted_chunk
 
     except (ValueError, KeyError) as e:
-        print(f"Decryption error: {e}")
+        print(f"Decryption error in stream: {e}")
         raise ValueError("Неправильний пароль або пошкоджені дані")
-    finally:
-        await input_file.close()

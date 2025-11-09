@@ -1,6 +1,7 @@
 import base64
-from fastapi import HTTPException, UploadFile, File, Form, APIRouter, Depends 
+from fastapi import HTTPException, APIRouter, Request
 from fastapi.responses import StreamingResponse
+from fastapi.datastructures import UploadFile   
 from typing import Optional
 from ..utils import crypto_utils
 from ..schemas.cryptoModels import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
@@ -19,7 +20,7 @@ async def encrypt_text_endpoint(
         encrypted_bytes = crypto_utils.encrypt_text(
             request.password, 
             request.text, 
-            iv  #
+            iv  
         )
         
         encrypted_b64 = base64.b64encode(encrypted_bytes).decode('utf-8')
@@ -42,22 +43,42 @@ async def decrypt_text_endpoint(request: TextDecryptRequest):
 
 @router.post("/file/encrypt", tags=["File"])
 async def encrypt_file_endpoint(
-    session: SessionDep, 
-    password: str = Form(...),
-    file: UploadFile = File(...)
+    request: Request,
+    session: SessionDep
 ):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Файл не надано")
+    try:
+        form = await request.form()
+        password: str = form.get("password")
+        file: UploadFile = form.get("file")
+        
+        if not file or not file.filename:
+            raise HTTPException(status_code=400, detail="Файл не надано")
+        if not password:
+            raise HTTPException(status_code=400, detail="Пароль не надано")
+            
+    except Exception:
+         raise HTTPException(status_code=400, detail="Некоректний form-data запит")
 
     output_filename = f"{file.filename}.rc5"
     
     try:
         iv = crypto_utils.get_iv_from_lcg(session)
     except Exception as e:
+        await file.close() 
         raise HTTPException(status_code=500, detail=f"Помилка генерації IV: {e}")
 
+    async def stream_wrapper():
+        try:
+            async for chunk in crypto_utils.encrypt_file_stream(password, file, iv):
+                yield chunk
+        except Exception as e:
+            print(f"Error during encryption stream: {e}")
+        finally:
+            print("Encrypt stream finished. Closing file.")
+            await file.close() 
+
     return StreamingResponse(
-        crypto_utils.encrypt_file_stream(password, file, iv), 
+        stream_wrapper(),
         media_type="application/octet-stream",
         headers={"Content-Disposition": f"attachment; filename={output_filename}"}
     )
@@ -65,13 +86,22 @@ async def encrypt_file_endpoint(
 
 @router.post("/file/decrypt", tags=["File"])
 async def decrypt_file_endpoint(
-    password: str = Form(...),
-    file: UploadFile = File(...),
-    original_filename: Optional[str] = Form(None)
+    request: Request 
 ):
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Файл не надано")
+    try:
+        form = await request.form()
+        password: str = form.get("password")
+        file: UploadFile = form.get("file")
+        original_filename: Optional[str] = form.get("original_filename")
 
+        if not file or not file.filename:
+            raise HTTPException(status_code=400, detail="Файл не надано")
+        if not password:
+            raise HTTPException(status_code=400, detail="Пароль не надано")
+            
+    except Exception:
+         raise HTTPException(status_code=400, detail="Некоректний form-data запит")
+    
     if original_filename:
         output_filename = original_filename
     elif file.filename.endswith(".rc5"):
@@ -84,8 +114,13 @@ async def decrypt_file_endpoint(
             async for chunk in crypto_utils.decrypt_file_stream(password, file):
                 yield chunk
         except ValueError as e:
-            print(f"Stream interrupted: {e}")
-            pass
+            print(f"Stream interrupted (wrong password?): {e}")
+            pass 
+        except Exception as e:
+            print(f"Error during decryption stream: {e}")
+        finally:
+            print("Decrypt stream finished. Closing file.")
+            await file.close() 
 
     return StreamingResponse(
         stream_wrapper(),

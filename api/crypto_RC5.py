@@ -1,4 +1,5 @@
 import base64
+import os
 from fastapi import HTTPException, APIRouter, Request
 from fastapi.responses import StreamingResponse
 from fastapi.datastructures import UploadFile   
@@ -27,8 +28,7 @@ async def encrypt_text_endpoint(
         return TextEncryptResponse(encrypted_data_b64=encrypted_b64)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
-
-
+    
 @router.post("/text/decrypt", response_model=TextDecryptResponse, tags=["Text"])
 async def decrypt_text_endpoint(request: TextDecryptRequest):
     try:
@@ -39,7 +39,60 @@ async def decrypt_text_endpoint(request: TextDecryptRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка дешифрування: {e}")
+    
+@router.post("/text-to-file/encrypt", tags=["Conversion"])
+async def encrypt_text_to_file_endpoint(
+    request: TextEncryptRequest,
+    session: SessionDep
+):
+    try:
+        iv = crypto_utils.get_iv_from_lcg(session) 
+        encrypted_bytes = crypto_utils.encrypt_text(
+            request.password, 
+            request.text, 
+            iv
+        )
+        
+        async def stream_wrapper():
+            yield encrypted_bytes
 
+        output_filename = "encrypted_text.txt" 
+        
+        return StreamingResponse(
+            stream_wrapper(),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
+
+@router.post("/file-to-text/decrypt", response_model=TextDecryptResponse, tags=["Conversion"])
+async def decrypt_file_to_text_endpoint(request: Request):
+    try:
+        form = await request.form()
+        password: str = form.get("password")
+        file: UploadFile = form.get("file")
+
+        if not file or not file.filename:
+            raise HTTPException(status_code=400, detail="Файл не надано")
+        if not password:
+            raise HTTPException(status_code=400, detail="Пароль не надано")     
+    except Exception:
+         raise HTTPException(status_code=400, detail="Некоректний form-data запит")
+
+    try:
+        encrypted_bytes = await file.read()
+        if not encrypted_bytes:
+            raise ValueError("Файл порожній")
+
+        decrypted_text = crypto_utils.decrypt_text(password, encrypted_bytes)
+        return TextDecryptResponse(text=decrypted_text)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Помилка дешифрування: {e}")
+    finally:
+        await file.close()
 
 @router.post("/file/encrypt", tags=["File"])
 async def encrypt_file_endpoint(
@@ -59,7 +112,8 @@ async def encrypt_file_endpoint(
     except Exception:
          raise HTTPException(status_code=400, detail="Некоректний form-data запит")
 
-    output_filename = f"{file.filename}.rc5"
+    filename, file_extension = os.path.splitext(file.filename)
+    output_filename = f"{filename}_encrypted{file_extension}"
     
     try:
         iv = crypto_utils.get_iv_from_lcg(session)
@@ -92,7 +146,7 @@ async def decrypt_file_endpoint(
         form = await request.form()
         password: str = form.get("password")
         file: UploadFile = form.get("file")
-        original_filename: Optional[str] = form.get("original_filename")
+        original_filename: Optional[str] = form.get("original_filename") 
 
         if not file or not file.filename:
             raise HTTPException(status_code=400, detail="Файл не надано")
@@ -104,10 +158,15 @@ async def decrypt_file_endpoint(
     
     if original_filename:
         output_filename = original_filename
-    elif file.filename.endswith(".rc5"):
-        output_filename = file.filename[:-4] 
     else:
-        output_filename = f"{file.filename}.decrypted"
+        filename, file_extension = os.path.splitext(file.filename)
+        
+        if filename.endswith("_encrypted"):
+            clean_name = filename[:-10] 
+            output_filename = f"{clean_name}_decrypted{file_extension}"
+        else:
+    
+            output_filename = f"{filename}_decrypted{file_extension}"
 
     async def stream_wrapper():
         try:

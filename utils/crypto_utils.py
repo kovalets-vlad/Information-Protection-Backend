@@ -74,7 +74,10 @@ def decrypt_text(password: str, encrypted_data: bytes) -> str:
         plaintext_bytes = unpad(padded_data, BLOCK_SIZE) 
 
         return plaintext_bytes.decode('utf-8')
-    except (ValueError, KeyError, UnicodeDecodeError) as e:
+        
+    except UnicodeDecodeError:
+        raise ValueError("Розшифровані дані не є текстом. Можливо, це файл іншого формату або неправильний пароль.")
+    except (ValueError, KeyError) as e:
         print(f"Decryption error: {e}")
         raise ValueError("Неправильний пароль або пошкоджені дані")
 
@@ -119,17 +122,21 @@ async def decrypt_file_stream(password: str, input_file: UploadFile):
         buffer = b""
 
         while True:
-            ciphertext_chunk = await input_file.read(STREAM_CHUNK_SIZE) 
+            ciphertext_chunk = await input_file.read(STREAM_CHUNK_SIZE)
 
             if not ciphertext_chunk:
                 if len(buffer) % BLOCK_SIZE != 0:
                     raise ValueError("Пошкоджені дані: неповний останній блок.")
                 
-                decrypted_chunk = cipher.decrypt(buffer) 
-                if last_decrypted_chunk:
-                    yield last_decrypted_chunk
+                remaining_part = cipher.decrypt(buffer)
                 
-                unpadded_data = unpad(decrypted_chunk, BLOCK_SIZE)
+                total_last_data = last_decrypted_chunk + remaining_part
+                
+                if not total_last_data:
+                     raise ValueError("Пошкоджений файл: немає даних після IV")
+
+                unpadded_data = unpad(total_last_data, BLOCK_SIZE)
+                
                 yield unpadded_data
                 break
 
@@ -146,6 +153,7 @@ async def decrypt_file_stream(password: str, input_file: UploadFile):
             
             if last_decrypted_chunk:
                 yield last_decrypted_chunk
+            
             last_decrypted_chunk = decrypted_chunk
 
     except (ValueError, KeyError) as e:

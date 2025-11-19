@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile
-from ..schemas.models import MD5Request, MD5Response
+from ..schemas.md5Models import MD5Request, MD5Response
 from ..utils.hashfun_utils import MD5
-from ..db.session import SessionDep
+from ..core.core_varibles import STREAM_CHUNK_SIZE
 
 router = APIRouter()
 
@@ -16,12 +16,11 @@ def md5_from_string(req: MD5Request):
 
 @router.post("/md5/file", response_model=MD5Response)
 async def md5_from_file(file: UploadFile = File(...)):
-    CHUNK_SIZE = 8192  
     md = MD5()
     total = 0
     try:
         while True:
-            chunk = await file.read(CHUNK_SIZE)
+            chunk = await file.read(STREAM_CHUNK_SIZE)
             if not chunk:
                 break
             md.update(chunk)
@@ -29,4 +28,4 @@ async def md5_from_file(file: UploadFile = File(...)):
         await file.close()
         return {"hex": md.hexdigest(), "length": total}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile
-from ..schemas.md5Models import MD5Request, MD5Response
+from ..schemas.md5_models import MD5Request, MD5Response
 from ..utils.hashfun_utils import MD5
 from ..core.core_varibles import STREAM_CHUNK_SIZE
 

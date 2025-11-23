@@ -3,7 +3,6 @@ import zipfile
 from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from fastapi.datastructures import UploadFile 
 from ..utils import rsa_utils
 from cryptography.hazmat.primitives import serialization
 

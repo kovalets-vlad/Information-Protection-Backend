@@ -3,12 +3,12 @@ from fastapi.responses import JSONResponse
 import math, random
 from ..db.session import SessionDep
 from ..db.models import RandomState
-from ..schemas.randomModels import RandomRequest
+from ..schemas.random_models import RandomRequest
 from ..utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
 
 router = APIRouter()
 
-@router.get("/period")
+@router.get("/lcg/period")
 def period(session: SessionDep):
     state = session.get(RandomState, 1)
     seed = state.seed
@@ -21,7 +21,7 @@ def period(session: SessionDep):
         i += 1
     return i - seen[x]
 
-@router.post("/test_generator")
+@router.post("/lcg/test_generator")
 def test_generator(session: SessionDep, n: int = 1000):
     state = session.get(RandomState, 1)
     seed = state.seed
@@ -38,7 +38,7 @@ def test_generator(session: SessionDep, n: int = 1000):
         "true_pi": math.pi
     }
 
-@router.post("/random")
+@router.post("/lcg/random")
 def random_sequence(reg: RandomRequest, session: SessionDep):
     count = reg.count
     state = session.get(RandomState, 1)

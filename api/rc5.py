@@ -6,12 +6,12 @@ from fastapi.responses import StreamingResponse
 from fastapi.datastructures import UploadFile   
 from typing import Optional
 from ..utils import crypto_utils
-from ..schemas.cryptoModels import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
+from ..schemas.crypto_models import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
 from ..db.session import SessionDep 
 
 router = APIRouter()
 
-@router.post("/text/encrypt", response_model=TextEncryptResponse, tags=["Text"])
+@router.post("/rc5/text/encrypt", response_model=TextEncryptResponse)
 async def encrypt_text_endpoint(
     request: TextEncryptRequest,
     session: SessionDep  
@@ -24,7 +24,7 @@ async def encrypt_text_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
 
-@router.post("/text/decrypt", response_model=TextDecryptResponse, tags=["Text"])
+@router.post("/rc5/text/decrypt", response_model=TextDecryptResponse)
 async def decrypt_text_endpoint(request: TextDecryptRequest):
     try:
         encrypted_bytes = base64.b64decode(request.encrypted_data_b64)
@@ -35,7 +35,7 @@ async def decrypt_text_endpoint(request: TextDecryptRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка дешифрування: {e}")
 
-@router.post("/text-to-file/encrypt", tags=["Conversion"])
+@router.post("/rc5/text-to-file/encrypt")
 async def encrypt_text_to_file_endpoint(
     request: TextEncryptRequest,
     session: SessionDep
@@ -63,7 +63,7 @@ async def encrypt_text_to_file_endpoint(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
 
-@router.post("/file-to-text/decrypt", response_model=TextDecryptResponse, tags=["Conversion"])
+@router.post("/rc5/file-to-text/decrypt", response_model=TextDecryptResponse)
 async def decrypt_file_to_text_endpoint(request: Request):
     try:
         form = await request.form()
@@ -91,7 +91,7 @@ async def decrypt_file_to_text_endpoint(request: Request):
     finally:
         await file.close()
 
-@router.post("/file/encrypt", tags=["File"])
+@router.post("/rc5/file/encrypt")
 async def encrypt_file_endpoint(
     request: Request,
     session: SessionDep
@@ -137,7 +137,7 @@ async def encrypt_file_endpoint(
     )
 
 
-@router.post("/file/decrypt", tags=["File"])
+@router.post("/rc5/file/decrypt")
 async def decrypt_file_endpoint(
     request: Request 
 ):

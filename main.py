@@ -1,11 +1,10 @@
 from fastapi import FastAPI
-from .api import generator, hashf_MD5, crypto_RC5, rsa
+from .api import lcg, md5, rc5, rsa, dsa  
 from .db.init_db import create_db_and_tables
 from .utils.startingseed import starting_seed
 from fastapi.middleware.cors import CORSMiddleware
 
-
-app = FastAPI(title="Gamified Habit Tracker")
+app = FastAPI(title="Information-Protection-Backend")
 
 app.add_middleware(
     CORSMiddleware,
@@ -21,7 +20,8 @@ def on_startup():
     create_db_and_tables()
     starting_seed()
 
-app.include_router(generator.router, tags=["Random"])
-app.include_router(hashf_MD5.router, tags=["HashFunction"])
-app.include_router(crypto_RC5.router, tags=["RC5"])
+app.include_router(lcg.router, tags=["LCG"])
+app.include_router(md5.router, tags=["MD5"])
+app.include_router(rc5.router, tags=["RC5"])
 app.include_router(rsa.router, tags=["RSA"])
+app.include_router(dsa.router, tags=["DSA"])

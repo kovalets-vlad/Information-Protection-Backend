@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.datastructures import UploadFile 
 from ..utils import rsa_utils
+from cryptography.hazmat.primitives import serialization
 
 router = APIRouter()
 
@@ -29,26 +30,34 @@ async def generate_keys():
         raise HTTPException(status_code=500, detail=f"Помилка генерації ключів: {str(e)}")
 
 
-@router.post("/rsa/encrypt", tags=["RSA"])
-async def rsa_encrypt_file(
-    request: Request
-):
+@router.post("/rsa/encrypt")
+async def encrypt_file_endpoint(request: Request):
     try:
         form = await request.form()
-        file: UploadFile = form.get("file")
-        public_key: UploadFile = form.get("public_key")
+        file = form.get("file")
+        public_key = form.get("public_key")
 
         if not file or not public_key:
-             raise HTTPException(status_code=400, detail="Необхідно надати файл та публічний ключ")
+            raise HTTPException(status_code=400, detail="Необхідно надати файл та публічний ключ")
 
     except Exception:
          raise HTTPException(status_code=400, detail="Некоректний form-data запит")
 
     try:
         pub_key_bytes = await public_key.read()
-        await public_key.close()
+        await public_key.close() 
+        
+        try:
+            serialization.load_pem_public_key(pub_key_bytes)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Некоректний файл публічного ключа (очікується формат PEM).")
+        except Exception as e:
+             raise HTTPException(status_code=400, detail=f"Помилка валідації ключа: {str(e)}")
+             
+    except HTTPException as e:
+        raise e #
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Помилка читання ключа: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Помилка читання ключа: {str(e)}")
 
     filename = file.filename or "file"
     encoded_filename = quote(f"{filename}.enc")
@@ -69,47 +78,42 @@ async def rsa_encrypt_file(
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
-@router.post("/rsa/decrypt", tags=["RSA"])
-async def rsa_decrypt_file(
-    request: Request
-):
+@router.post("/rsa/decrypt")
+async def decrypt_file_endpoint(request: Request):
     try:
         form = await request.form()
-        file: UploadFile = form.get("file")
-        private_key: UploadFile = form.get("private_key")
+        file = form.get("file")
+        private_key = form.get("private_key")
 
         if not file or not private_key:
-             raise HTTPException(status_code=400, detail="Необхідно надати файл та приватний ключ")
+            raise HTTPException(status_code=400, detail="Необхідно завантажити файл і приватний ключ")
 
-    except Exception:
-         raise HTTPException(status_code=400, detail="Некоректний form-data запит")
-
-    try:
         priv_key_bytes = await private_key.read()
-        await private_key.close()
+
+        cipher_decryptor, unpadder, iv = await rsa_utils.init_decrypt_session(file, priv_key_bytes)
+
+        filename = file.filename or "decrypted_file"
+        if filename.endswith(".enc"):
+            filename = filename[:-4]
+        encoded_filename = quote(f"decrypted_{filename}")
+
+        async def stream_wrapper():
+            try:
+                async for chunk in rsa_utils.stream_decrypt_data(file, cipher_decryptor, unpadder):
+                    yield chunk
+            except Exception as e:
+                print(f"Stream error: {e}")
+                raise e
+
+        return StreamingResponse(
+            stream_wrapper(),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException as e:
+        raise e 
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Помилка читання ключа: {str(e)}")
-
-    filename = file.filename or "file.decrypted"
-    if filename.endswith(".enc"):
-        filename = filename[:-4]
-    
-    encoded_filename = quote(f"decrypted_{filename}")
-
-    async def stream_wrapper():
-        try:
-            async for chunk in rsa_utils.decrypt_file_hybrid_stream(file, priv_key_bytes):
-                yield chunk
-        except ValueError as e:
-             print(f"RSA Decryption error (wrong key?): {e}")
-        except Exception as e:
-             print(f"Error during RSA decryption stream: {e}")
-        finally:
-            print("RSA Decrypt stream finished. Closing file.")
-            await file.close()
-
-    return StreamingResponse(
-        stream_wrapper(),
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
-    )
+        raise HTTPException(status_code=500, detail=f"Помилка сервера: {str(e)}")

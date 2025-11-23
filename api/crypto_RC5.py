@@ -19,6 +19,7 @@ async def encrypt_text_endpoint(
     try:
         iv = crypto_utils.get_iv_from_lcg(session) 
         encrypted_bytes = crypto_utils.encrypt_text(request.password, request.text, iv)
+
         encrypted_b64 = base64.b64encode(encrypted_bytes).decode('utf-8')
         return TextEncryptResponse(encrypted_data_b64=encrypted_b64)
     except Exception as e:

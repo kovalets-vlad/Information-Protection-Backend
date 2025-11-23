@@ -28,7 +28,7 @@ def unpad(padded_data: bytes, block_size: int) -> bytes:
 
 def get_key_from_password(password: str) -> bytes:
     md = MD5()
-    md.update(password)
+    md.update(password.encode('utf-8')) 
     key = md.digest()  
     return key
 

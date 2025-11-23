@@ -1,5 +1,6 @@
-import base64
 import os
+import base64
+from urllib.parse import quote
 from fastapi import HTTPException, APIRouter, Request
 from fastapi.responses import StreamingResponse
 from fastapi.datastructures import UploadFile   
@@ -17,18 +18,12 @@ async def encrypt_text_endpoint(
 ):
     try:
         iv = crypto_utils.get_iv_from_lcg(session) 
-
-        encrypted_bytes = crypto_utils.encrypt_text(
-            request.password, 
-            request.text, 
-            iv  
-        )
-        
+        encrypted_bytes = crypto_utils.encrypt_text(request.password, request.text, iv)
         encrypted_b64 = base64.b64encode(encrypted_bytes).decode('utf-8')
         return TextEncryptResponse(encrypted_data_b64=encrypted_b64)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
-    
+
 @router.post("/text/decrypt", response_model=TextDecryptResponse, tags=["Text"])
 async def decrypt_text_endpoint(request: TextDecryptRequest):
     try:
@@ -39,7 +34,7 @@ async def decrypt_text_endpoint(request: TextDecryptRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка дешифрування: {e}")
-    
+
 @router.post("/text-to-file/encrypt", tags=["Conversion"])
 async def encrypt_text_to_file_endpoint(
     request: TextEncryptRequest,
@@ -57,11 +52,13 @@ async def encrypt_text_to_file_endpoint(
             yield encrypted_bytes
 
         output_filename = "encrypted_text.txt" 
-        
+
+        encoded_filename = quote(output_filename)
+
         return StreamingResponse(
             stream_wrapper(),
             media_type="application/octet-stream",
-            headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+            headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка шифрування: {e}")
@@ -114,6 +111,8 @@ async def encrypt_file_endpoint(
 
     filename, file_extension = os.path.splitext(file.filename)
     output_filename = f"{filename}_encrypted{file_extension}"
+
+    encoded_filename = quote(output_filename)
     
     try:
         iv = crypto_utils.get_iv_from_lcg(session)
@@ -134,7 +133,7 @@ async def encrypt_file_endpoint(
     return StreamingResponse(
         stream_wrapper(),
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
@@ -146,7 +145,7 @@ async def decrypt_file_endpoint(
         form = await request.form()
         password: str = form.get("password")
         file: UploadFile = form.get("file")
-        original_filename: Optional[str] = form.get("original_filename") 
+        original_filename: Optional[str] = form.get("original_filename")
 
         if not file or not file.filename:
             raise HTTPException(status_code=400, detail="Файл не надано")
@@ -160,13 +159,13 @@ async def decrypt_file_endpoint(
         output_filename = original_filename
     else:
         filename, file_extension = os.path.splitext(file.filename)
-        
         if filename.endswith("_encrypted"):
-            clean_name = filename[:-10] 
+            clean_name = filename[:-10]
             output_filename = f"{clean_name}_decrypted{file_extension}"
         else:
-    
             output_filename = f"{filename}_decrypted{file_extension}"
+
+    encoded_filename = quote(output_filename)
 
     async def stream_wrapper():
         try:
@@ -184,5 +183,5 @@ async def decrypt_file_endpoint(
     return StreamingResponse(
         stream_wrapper(),
         media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename={output_filename}"}
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )

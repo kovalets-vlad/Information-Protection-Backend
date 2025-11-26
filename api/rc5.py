@@ -9,6 +9,10 @@ from ..utils import crypto_utils
 from ..schemas.crypto_models import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
 from ..db.session import SessionDep 
 
+CONST_STAN = "application/octet-stream"
+FILE_ERROR = "Файл не надано"
+PASS_ERROR = "Пароль не надано"
+
 router = APIRouter()
 
 @router.post("/rc5/text/encrypt", response_model=TextEncryptResponse)
@@ -57,7 +61,7 @@ async def encrypt_text_to_file_endpoint(
 
         return StreamingResponse(
             stream_wrapper(),
-            media_type="application/octet-stream",
+            media_type=CONST_STAN,
             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
     except Exception as e:
@@ -71,9 +75,9 @@ async def decrypt_file_to_text_endpoint(request: Request):
         file: UploadFile = form.get("file")
 
         if not file or not file.filename:
-            raise HTTPException(status_code=400, detail="Файл не надано")
+            raise HTTPException(status_code=400, detail=FILE_ERROR)
         if not password:
-            raise HTTPException(status_code=400, detail="Пароль не надано")     
+            raise HTTPException(status_code=400, detail=PASS_ERROR)     
     except Exception:
          raise HTTPException(status_code=400, detail="Некоректний form-data запит")
 
@@ -102,9 +106,9 @@ async def encrypt_file_endpoint(
         file: UploadFile = form.get("file")
         
         if not file or not file.filename:
-            raise HTTPException(status_code=400, detail="Файл не надано")
+            raise HTTPException(status_code=400, detail=FILE_ERROR)
         if not password:
-            raise HTTPException(status_code=400, detail="Пароль не надано")
+            raise HTTPException(status_code=400, detail=PASS_ERROR)
             
     except Exception:
          raise HTTPException(status_code=400, detail="Некоректний form-data запит")
@@ -132,15 +136,13 @@ async def encrypt_file_endpoint(
 
     return StreamingResponse(
         stream_wrapper(),
-        media_type="application/octet-stream",
+        media_type=CONST_STAN,
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )
 
 
 @router.post("/rc5/file/decrypt")
-async def decrypt_file_endpoint(
-    request: Request 
-):
+async def decrypt_file_endpoint(request: Request):
     try:
         form = await request.form()
         password: str = form.get("password")
@@ -148,13 +150,18 @@ async def decrypt_file_endpoint(
         original_filename: Optional[str] = form.get("original_filename")
 
         if not file or not file.filename:
-            raise HTTPException(status_code=400, detail="Файл не надано")
+            raise HTTPException(status_code=400, detail=FILE_ERROR)
         if not password:
-            raise HTTPException(status_code=400, detail="Пароль не надано")
-            
+            raise HTTPException(status_code=400, detail=PASS_ERROR)
+
     except Exception:
-         raise HTTPException(status_code=400, detail="Некоректний form-data запит")
-    
+        raise HTTPException(status_code=400, detail="Некоректний form-data запит")
+    try:
+        await crypto_utils.decrypt_test(password, file)
+        await file.seek(0)  
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Неправильний пароль")
+
     if original_filename:
         output_filename = original_filename
     else:
@@ -171,17 +178,11 @@ async def decrypt_file_endpoint(
         try:
             async for chunk in crypto_utils.decrypt_file_stream(password, file):
                 yield chunk
-        except ValueError as e:
-            print(f"Stream interrupted (wrong password?): {e}")
-            pass 
-        except Exception as e:
-            print(f"Error during decryption stream: {e}")
         finally:
-            print("Decrypt stream finished. Closing file.")
-            await file.close() 
+            await file.close()
 
     return StreamingResponse(
         stream_wrapper(),
-        media_type="application/octet-stream",
+        media_type=CONST_STAN,
         headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
     )

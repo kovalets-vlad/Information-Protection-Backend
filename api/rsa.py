@@ -1,5 +1,6 @@
 import io
 import zipfile
+import traceback
 from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -54,21 +55,22 @@ async def encrypt_file_endpoint(request: Request):
              raise HTTPException(status_code=400, detail=f"Помилка валідації ключа: {str(e)}")
              
     except HTTPException as e:
-        raise e #
+        raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Помилка читання ключа: {str(e)}")
 
     filename = file.filename or "file"
     encoded_filename = quote(f"{filename}.enc")
 
+    # Обгортка для стрімінгу, щоб закрити файл після завершення
     async def stream_wrapper():
         try:
             async for chunk in rsa_utils.encrypt_file_hybrid_stream(file, pub_key_bytes):
                 yield chunk
         except Exception as e:
             print(f"Error during RSA encryption stream: {e}")
+            # Можна кинути помилку, але стрім вже почався
         finally:
-            print("RSA Encrypt stream finished. Closing file.")
             await file.close()
 
     return StreamingResponse(
@@ -89,7 +91,8 @@ async def decrypt_file_endpoint(request: Request):
 
         priv_key_bytes = await private_key.read()
 
-        cipher_decryptor, unpadder, iv = await rsa_utils.init_decrypt_session(file, priv_key_bytes)
+        # --- ЗМІНА ТУТ: Отримуємо decryptor та довжину даних (2 значення) ---
+        decryptor, ciphertext_len = await rsa_utils.init_decrypt_session(file, priv_key_bytes)
 
         filename = file.filename or "decrypted_file"
         if filename.endswith(".enc"):
@@ -98,11 +101,13 @@ async def decrypt_file_endpoint(request: Request):
 
         async def stream_wrapper():
             try:
-                async for chunk in rsa_utils.stream_decrypt_data(file, cipher_decryptor, unpadder):
+                # Передаємо довжину даних у функцію розшифрування
+                async for chunk in rsa_utils.stream_decrypt_data(file, decryptor, ciphertext_len):
                     yield chunk
             except Exception as e:
                 print(f"Stream error: {e}")
-                raise e
+                # Тут вже важко повернути HTTP помилку клієнту, бо стрім пішов, 
+                # але сервер не впаде.
 
         return StreamingResponse(
             stream_wrapper(),
@@ -110,9 +115,8 @@ async def decrypt_file_endpoint(request: Request):
             headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"}
         )
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except HTTPException as e:
         raise e 
     except Exception as e:
+        traceback.print_exc() # Виведе деталі в консоль
         raise HTTPException(status_code=500, detail=f"Помилка сервера: {str(e)}")

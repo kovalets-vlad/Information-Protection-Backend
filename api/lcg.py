@@ -29,7 +29,7 @@ def test_generator(session: SessionDep, n: int = 1000):
     seq_lcg = generate_lcg_sequence(seed, n)
     pi_lcg, P_lcg = cesaro_test(seq_lcg)
 
-    seq_rand = [random.randint(1, 10**9) for _ in range(n)]
+    seq_rand = [random.randint(1, 10**9) for _ in range(n)] # NOSONAR
     pi_rand, P_rand = cesaro_test(seq_rand)
 
     return {

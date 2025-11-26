@@ -80,6 +80,32 @@ def decrypt_text(password: str, encrypted_data: bytes) -> str:
     except (ValueError, KeyError) as e:
         print(f"Decryption error: {e}")
         raise ValueError("Неправильний пароль або пошкоджені дані")
+    
+async def decrypt_test(password: str, file: UploadFile):
+    header = await file.read(IV_SIZE + BLOCK_SIZE)
+    if len(header) < IV_SIZE + BLOCK_SIZE:
+        raise ValueError("Файл надто короткий або пошкоджений")
+
+    iv = header[:IV_SIZE]
+    first_block = header[IV_SIZE:]
+
+    key = get_key_from_password(password)
+    cipher = RC5.new(
+        key, 
+        RC5.MODE_CBC,
+        IV=iv,
+        word_size=RC5_WORD_SIZE,
+        rounds=RC5_ROUNDS
+    )
+
+    decrypted_block = cipher.decrypt(first_block)
+
+    try:
+        decrypted_block.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ValueError("Wrong password")
+
+    await file.seek(0)
 
 
 async def encrypt_file_stream(password: str, input_file: UploadFile, iv: bytes):

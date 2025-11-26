@@ -1,5 +1,6 @@
 import io
 import zipfile
+import anyio
 from urllib.parse import quote
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
@@ -17,9 +18,9 @@ async def generate_keys_endpoint(req: KeyGenRequest):
         
         priv_path, pub_path = dss.generate_keys(filename_prefix)
         
-        with open(priv_path, "rb") as f:
+        async with await anyio.open_file(priv_path, "rb") as f:
             priv_content = f.read()
-        with open(pub_path, "rb") as f:
+        async with await anyio.open_file(pub_path, "rb") as f:
             pub_content = f.read()
 
         zip_buffer = io.BytesIO()

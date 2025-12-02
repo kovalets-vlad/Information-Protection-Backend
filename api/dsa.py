@@ -17,11 +17,12 @@ async def generate_keys_endpoint(req: KeyGenRequest):
         filename_prefix = req.filename_prefix 
         
         priv_path, pub_path = dss.generate_keys(filename_prefix)
-        
+  
         async with await anyio.open_file(priv_path, "rb") as f:
-            priv_content = f.read()
+            priv_content = await f.read()
+            
         async with await anyio.open_file(pub_path, "rb") as f:
-            pub_content = f.read()
+            pub_content = await f.read() 
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:

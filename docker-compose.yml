@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+    # Наш FastAPI додаток
+    app:
+        build: .
+        volumes:
+            - .:/app
+        ports:
+            - "8000:8000"
+        env_file:
+            - .env
+        depends_on:
+            - db
+        networks:
+            - crypto-network
+
+    # База даних PostgreSQL
+    db:
+        image: postgres:15-alpine
+        restart: always
+        environment:
+            POSTGRES_USER: user
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: crypto_db
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - crypto-network
+
+networks:
+    crypto-network:
+        driver: bridge
+
+volumes:
+    postgres_data:

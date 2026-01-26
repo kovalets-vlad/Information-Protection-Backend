@@ -1,7 +1,7 @@
 import struct
 import numpy as np
 from numba import jit, uint16
-from ..core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, KEY_SIZE
+from core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, KEY_SIZE
 
 # Константи для 16/20/16 RC5 реалізації з JIT компіляцією
 

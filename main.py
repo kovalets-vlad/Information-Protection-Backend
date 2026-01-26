@@ -14,6 +14,8 @@ app.add_middleware(
     allow_headers=["*"],  
     expose_headers=["Content-Disposition"],
     
+    expose_headers=["Content-Disposition"],
+    
 )
 @app.on_event("startup")
 def on_startup():

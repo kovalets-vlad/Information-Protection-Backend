@@ -1,9 +1,9 @@
 from fastapi import UploadFile
-from .hashfun_utils import MD5
-from .rc5_custom import RC5_custom as RC5
-from ..db.models import RandomState
-from ..utils.lcg_utils import lcg 
-from ..core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, STREAM_CHUNK_SIZE
+from utils.hashfun_utils import MD5
+from utils.rc5_custom import RC5_custom as RC5
+from db.models import RandomState
+from utils.lcg_utils import lcg 
+from core.core_varibles import RC5_ROUNDS, RC5_WORD_SIZE, STREAM_CHUNK_SIZE
 
 BLOCK_SIZE = int(2 * ( RC5_WORD_SIZE/8 ))    
 IV_SIZE = BLOCK_SIZE 

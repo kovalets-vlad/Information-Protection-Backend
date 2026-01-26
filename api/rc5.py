@@ -5,9 +5,9 @@ from fastapi import HTTPException, APIRouter, Request
 from fastapi.responses import StreamingResponse
 from fastapi.datastructures import UploadFile   
 from typing import Optional
-from ..utils import crypto_utils
-from ..schemas.crypto_models import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
-from ..db.session import SessionDep 
+from utils import crypto_utils
+from schemas.crypto_models import TextDecryptRequest, TextDecryptResponse, TextEncryptRequest, TextEncryptResponse
+from db.session import SessionDep 
 
 CONST_STAN = "application/octet-stream"
 FILE_ERROR = "Файл не надано"

@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 import math, random
-from ..db.session import SessionDep
-from ..db.models import RandomState
-from ..schemas.random_models import RandomRequest
-from ..utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
+from db.session import SessionDep
+from db.models import RandomState
+from schemas.random_models import RandomRequest
+from utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
 
 router = APIRouter()
 

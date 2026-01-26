@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from .api import lcg, md5, rc5, rsa, dsa  
-from .db.init_db import create_db_and_tables
-from .utils.startingseed import starting_seed
+from api import lcg, md5, rc5, rsa, dsa  
+from db.init_db import create_db_and_tables
+from utils.startingseed import starting_seed
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Information-Protection-Backend")

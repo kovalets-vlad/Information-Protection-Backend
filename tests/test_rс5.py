@@ -1,7 +1,4 @@
-import base64
-from io import BytesIO
 import pytest
-from fastapi import UploadFile
 
 DEFAULT_PASS = "mypassword123"
 

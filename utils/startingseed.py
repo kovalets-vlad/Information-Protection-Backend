@@ -1,7 +1,7 @@
 from sqlmodel import Session
-from ..db.base import engine
-from ..db.models import RandomState
-from ..core.core_varibles import INITIAL_NUMBER
+from db.base import engine
+from db.models import RandomState
+from core.core_varibles import INITIAL_NUMBER
 
 
 def starting_seed():

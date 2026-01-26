@@ -4,8 +4,8 @@ import anyio
 from urllib.parse import quote
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import StreamingResponse
-from ..schemas.dsa_models import KeyGenRequest 
-from ..utils.dss_utils import DSSManager
+from schemas.dsa_models import KeyGenRequest 
+from utils.dss_utils import DSSManager
 
 dss = DSSManager()
 router = APIRouter()

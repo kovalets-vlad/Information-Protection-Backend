@@ -1,0 +1,22 @@
+# Web framework & Server
+fastapi
+uvicorn[standard]
+anyio
+
+# Data validation & ORM
+pydantic
+sqlmodel
+sqlalchemy
+python-dotenv
+
+# Security & Cryptography
+cryptography
+passlib[bcrypt]  
+python-multipart 
+
+# Math & Performance
+numpy
+numba
+
+# Testing
+pytest

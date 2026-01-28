@@ -1,13 +1,8 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile
-<<<<<<<< HEAD:api/md5.py
 from schemas.md5_models import MD5Request, MD5Response
 from utils.hashfun_utils import MD5
 from core.core_varibles import STREAM_CHUNK_SIZE
-========
-from ..schemas.md5Models import MD5Request, MD5Response
-from ..utils.hashfun_utils import MD5
-from ..core.core_varibles import STREAM_CHUNK_SIZE
->>>>>>>> c14eb2577f81f05754d65a4cdf1e82f672bfa4a9:api/hashf_MD5.py
+
 
 router = APIRouter()
 

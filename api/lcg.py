@@ -1,17 +1,14 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 import math, random
-<<<<<<< HEAD:api/lcg.py
 from db.session import SessionDep
 from db.models import RandomState
 from schemas.random_models import RandomRequest
 from utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
-=======
 from ..db.session import SessionDep
 from ..db.models import RandomState
 from ..schemas.randomModels import RandomRequest
 from ..utils.lcg_utils import lcg, generate_lcg_sequence, cesaro_test
->>>>>>> c14eb2577f81f05754d65a4cdf1e82f672bfa4a9:api/generator.py
 
 router = APIRouter()
 

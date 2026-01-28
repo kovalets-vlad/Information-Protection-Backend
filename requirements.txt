@@ -12,7 +12,8 @@ python-dotenv
 # Security & Cryptography
 cryptography
 passlib[bcrypt]  
-python-multipart 
+python-multipart
+psycopg2-binary 
 
 # Math & Performance
 numpy
